@@ -64,6 +64,7 @@ export default function App() {
   // keyword state
   const [kwProduct, setKwProduct] = useState('')
   const [kwResult, setKwResult] = useState(null)
+  const [coupang, setCoupang] = useState([])
   const [kwLoading, setKwLoading] = useState(false)
   const [kwError, setKwError] = useState('')
 
@@ -147,6 +148,7 @@ export default function App() {
     if (!kwProduct.trim()) return
     setKwLoading(true)
     setKwResult(null)
+    setCoupang([])
     setKwError('')
     try {
       const res = await fetch('/api/keywords', {
@@ -157,6 +159,7 @@ export default function App() {
       const data = await res.json()
       if (data.error) { setKwError(data.error); return }
       setKwResult(data.keywords)
+      setCoupang(data.coupang || [])
     } catch {
       setKwError('오류가 발생했습니다. 다시 시도해주세요.')
     }
@@ -337,6 +340,23 @@ export default function App() {
                     </div>
                   )
                 ))}
+
+                {/* 쿠팡 연관 키워드 */}
+                {coupang.length > 0 && (
+                  <div className="kw-card" style={{ marginBottom: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '10px' }}>
+                      <div className="kw-cat" style={{ color: '#e6600a', marginBottom: 0 }}>🛒 쿠팡 연관 키워드</div>
+                      <span style={{ fontSize: '11px', color: 'var(--text3)' }}>쿠팡 자동완성 기반</span>
+                    </div>
+                    <div className="kw-pills">
+                      {coupang.map((kw) => (
+                        <button key={kw} className={`kw-pill${copiedKw === kw ? ' copied' : ''}`} onClick={() => copyKw(kw)}>
+                          {copiedKw === kw ? '복사됨!' : kw}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
