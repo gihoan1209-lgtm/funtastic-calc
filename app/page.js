@@ -6,25 +6,28 @@ const roundup10 = (n) => Math.ceil(n / 10) * 10
 const won = (n) => Math.round(n).toLocaleString('ko-KR') + '원'
 const pct = (n) => (n * 100).toFixed(1) + '%'
 
-function calcPrices(cost, b2bOverride, b2cOverride) {
+function calcPrices(cost, b2bOverride, b2cOverride, b2bRate, b2cRate) {
   if (!cost || cost <= 0) return null
+  const b2bR = (parseFloat(b2bRate) || 10) / 100
+  const b2cR = (parseFloat(b2cRate) || 25) / 100
   const b2bCalc = cost * 1.4
   const b2bFinal = b2bOverride > 0 ? b2bOverride : roundup10(b2bCalc * 1.1)
   const b2bVat = b2bFinal / 11
-  const b2bFee = b2bFinal * 0.1
+  const b2bFee = b2bFinal * b2bR
   const b2bProfit = b2bFinal - cost - b2bVat - b2bFee
   const b2bPct = b2bProfit / b2bFinal
 
   const b2cCalc = b2bFinal * 1.2
   const b2cFinal = b2cOverride > 0 ? b2cOverride : roundup10(b2cCalc * 1.1)
   const b2cVat = b2cFinal / 11
-  const b2cFee = b2cFinal * 0.25
+  const b2cFee = b2cFinal * b2cR
   const b2cProfit = b2cFinal - cost - b2cVat - b2cFee
   const b2cPct = b2cProfit / b2cFinal
 
   return {
     b2bCalc, b2bFinal, b2bVat, b2bFee, b2bProfit, b2bPct,
     b2cCalc, b2cFinal, b2cVat, b2cFee, b2cProfit, b2cPct,
+    b2bR, b2cR,
   }
 }
 
@@ -60,6 +63,8 @@ export default function App() {
   const [cost, setCost] = useState('')
   const [b2bOverride, setB2bOverride] = useState('')
   const [b2cOverride, setB2cOverride] = useState('')
+  const [b2bRate, setB2bRate] = useState('10')
+  const [b2cRate, setB2cRate] = useState('25')
 
   // keyword state
   const [kwProduct, setKwProduct] = useState('')
@@ -87,7 +92,9 @@ export default function App() {
   const result = calcPrices(
     parseFloat(cost),
     parseFloat(b2bOverride),
-    parseFloat(b2cOverride)
+    parseFloat(b2cOverride),
+    b2bRate,
+    b2cRate,
   )
 
   /* fetch product list */
@@ -235,7 +242,7 @@ export default function App() {
                 <div className="calc-grid">
                   {/* B2B */}
                   <div className="card">
-                    <div className="card-title blue">B2B (도매) · 수수료 10%</div>
+                    <div className="card-title blue">B2B (도매)</div>
                     <CalcRow label="계산가 (원가 × 1.4)" value={won(result.b2bCalc)} />
                     <div className="calc-row">
                       <span className="calc-row-label">확정가</span>
@@ -246,14 +253,21 @@ export default function App() {
                       </div>
                     </div>
                     <CalcRow label="매출 부가세 (÷ 11)" value={won(result.b2bVat)} />
-                    <CalcRow label="수수료 (10%)" value={won(result.b2bFee)} />
+                    <div className="calc-row">
+                      <span className="calc-row-label">수수료</span>
+                      <div className="override-field">
+                        <input type="number" value={b2bRate === '10' ? '' : b2bRate} onChange={e => setB2bRate(e.target.value || '10')} placeholder="10%" min="0" max="100" />
+                        {b2bRate !== '10' && <button onClick={() => setB2bRate('10')} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text2)', cursor: 'pointer', whiteSpace: 'nowrap' }}>초기화</button>}
+                        {b2bRate === '10' && <span className="override-hint">비우면 10%</span>}
+                      </div>
+                    </div>
                     <CalcRow label="B2B 순이익" value={won(result.b2bProfit)} isProfit color={result.b2bProfit >= 0 ? 'green' : 'red'} />
                     <CalcRow label="순이익률" value={pct(result.b2bPct)} color={result.b2bPct >= 0.15 ? 'green' : 'red'} />
                   </div>
 
                   {/* B2C */}
                   <div className="card">
-                    <div className="card-title teal">B2C (소매) · 수수료 25%</div>
+                    <div className="card-title teal">B2C (소매)</div>
                     <CalcRow label="계산가 (B2B확정가 × 1.2)" value={won(result.b2cCalc)} />
                     <div className="calc-row">
                       <span className="calc-row-label">확정가</span>
@@ -264,7 +278,14 @@ export default function App() {
                       </div>
                     </div>
                     <CalcRow label="매출 부가세 (÷ 11)" value={won(result.b2cVat)} />
-                    <CalcRow label="수수료 (25%)" value={won(result.b2cFee)} />
+                    <div className="calc-row">
+                      <span className="calc-row-label">수수료</span>
+                      <div className="override-field">
+                        <input type="number" value={b2cRate === '25' ? '' : b2cRate} onChange={e => setB2cRate(e.target.value || '25')} placeholder="25%" min="0" max="100" />
+                        {b2cRate !== '25' && <button onClick={() => setB2cRate('25')} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text2)', cursor: 'pointer', whiteSpace: 'nowrap' }}>초기화</button>}
+                        {b2cRate === '25' && <span className="override-hint">비우면 25%</span>}
+                      </div>
+                    </div>
                     <CalcRow label="B2C 순이익" value={won(result.b2cProfit)} isProfit color={result.b2cProfit >= 0 ? 'green' : 'red'} />
                     <CalcRow label="순이익률" value={pct(result.b2cPct)} color={result.b2cPct >= 0.15 ? 'green' : 'red'} />
                   </div>
