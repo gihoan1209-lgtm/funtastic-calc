@@ -241,7 +241,8 @@ export default function App() {
                       <span className="calc-row-label">확정가</span>
                       <div className="override-field">
                         <input type="number" value={b2bOverride} onChange={e => setB2bOverride(e.target.value)} placeholder={won(result.b2bFinal)} />
-                        <span className="override-hint">비우면 자동</span>
+                        {b2bOverride && <button onClick={() => setB2bOverride('')} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text2)', cursor: 'pointer', whiteSpace: 'nowrap' }}>초기화</button>}
+                        {!b2bOverride && <span className="override-hint">비우면 자동</span>}
                       </div>
                     </div>
                     <CalcRow label="매출 부가세 (÷ 11)" value={won(result.b2bVat)} />
@@ -258,7 +259,8 @@ export default function App() {
                       <span className="calc-row-label">확정가</span>
                       <div className="override-field">
                         <input type="number" value={b2cOverride} onChange={e => setB2cOverride(e.target.value)} placeholder={won(result.b2cFinal)} />
-                        <span className="override-hint">비우면 자동</span>
+                        {b2cOverride && <button onClick={() => setB2cOverride('')} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text2)', cursor: 'pointer', whiteSpace: 'nowrap' }}>초기화</button>}
+                        {!b2cOverride && <span className="override-hint">비우면 자동</span>}
                       </div>
                     </div>
                     <CalcRow label="매출 부가세 (÷ 11)" value={won(result.b2cVat)} />
