@@ -71,6 +71,7 @@ export default function App() {
   const [kwResult, setKwResult] = useState(null)
   const [coupang, setCoupang] = useState([])
   const [naverShopping, setNaverShopping] = useState([])
+  const [aiRecommended, setAiRecommended] = useState([])
   const [kwLoading, setKwLoading] = useState(false)
   const [kwError, setKwError] = useState('')
 
@@ -158,6 +159,7 @@ export default function App() {
     setKwResult(null)
     setCoupang([])
     setNaverShopping([])
+    setAiRecommended([])
     setKwError('')
     try {
       const res = await fetch('/api/keywords', {
@@ -170,6 +172,7 @@ export default function App() {
       setKwResult(data.keywords)
       setCoupang(data.coupang || [])
       setNaverShopping(data.naverShopping || [])
+      setAiRecommended(data.aiRecommended || [])
     } catch {
       setKwError('오류가 발생했습니다. 다시 시도해주세요.')
     }
@@ -184,11 +187,13 @@ export default function App() {
   }
 
   const [copiedKw, setCopiedKw] = useState('')
+  const [expandedKw, setExpandedKw] = useState('')
   const copyKw = (kw) => {
     navigator.clipboard.writeText(kw).catch(() => {})
     setCopiedKw(kw)
     setTimeout(() => setCopiedKw(''), 1200)
   }
+  const toggleKw = (kw) => setExpandedKw(prev => prev === kw ? '' : kw)
 
   return (
     <>
@@ -318,7 +323,7 @@ export default function App() {
             {kwError && <div className="status-text" style={{ color: 'var(--red)' }}>{kwError}</div>}
             {!kwResult && !kwLoading && !kwError && (
               <div className="card" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text3)' }}>
-                상품명을 입력하면 네이버·쿠팡 스타일 키워드를 AI가 분석해드립니다
+                상품명을 입력하면 네이버·쿠팡 키워드와 판매링크를 바로 확인할 수 있어요
               </div>
             )}
 
@@ -326,7 +331,58 @@ export default function App() {
               <>
                 <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div className="section-head">{kwProduct} 키워드 분석 결과</div>
-                  <span style={{ fontSize: '11px', color: 'var(--text3)' }}>클릭하면 복사됩니다</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text3)' }}>키워드 클릭 → 판매링크 확인</span>
+                </div>
+
+                {/* ✨ AI 추천 키워드 — 맨 위 */}
+                {aiRecommended.length > 0 && (
+                  <div className="kw-card" style={{ marginBottom: '10px', border: '1.5px solid #c8b4f0', background: '#f8f4ff' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '10px' }}>
+                      <div className="kw-cat" style={{ color: '#6b3fa0', marginBottom: 0 }}>✨ AI 추천 키워드</div>
+                      <span style={{ fontSize: '11px', color: 'var(--text3)' }}>연관성 높은 상위 20개</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      {aiRecommended.map((k) => (
+                        <div key={k.keyword}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 7px', borderRadius: '6px', background: expandedKw === k.keyword ? '#ede4ff' : '#ede4ff80', cursor: 'pointer' }} onClick={() => toggleKw(k.keyword)}>
+                            <span style={{ flex: 1, fontSize: '13px', color: '#3d1f7a', fontWeight: 500 }}>{k.keyword}</span>
+                            <span style={{ fontSize: '10px', color: '#6b3fa0', whiteSpace: 'nowrap' }}>{(k.pc + k.mobile).toLocaleString()}</span>
+                            <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '20px', whiteSpace: 'nowrap', background: k.competition === 'low' ? 'var(--teal-bg)' : k.competition === 'mid' ? 'var(--amber-bg)' : 'var(--red-bg)', color: k.competition === 'low' ? 'var(--teal)' : k.competition === 'mid' ? 'var(--amber)' : 'var(--red)' }}>
+                              {k.competition === 'low' ? '낮음' : k.competition === 'mid' ? '중간' : '높음'}
+                            </span>
+                            <span style={{ fontSize: '10px', color: '#6b3fa0' }}>{expandedKw === k.keyword ? '▲' : '▼'}</span>
+                          </div>
+                          {expandedKw === k.keyword && (
+                            <div style={{ display: 'flex', gap: '4px', padding: '6px 7px', background: '#ede4ff', borderRadius: '0 0 6px 6px', flexWrap: 'wrap' }}>
+                              <button onClick={() => copyKw(k.keyword)} style={{ fontSize: '11px', padding: '4px 10px', border: '1px solid #c8b4f0', borderRadius: '4px', background: copiedKw === k.keyword ? 'var(--teal-bg)' : '#fff', color: copiedKw === k.keyword ? 'var(--teal)' : '#3d1f7a', cursor: 'pointer' }}>
+                                {copiedKw === k.keyword ? '✓ 복사됨!' : '📋 복사'}
+                              </button>
+                              <a href={`https://search.shopping.naver.com/search/all?query=${encodeURIComponent(k.keyword)}`} target="_blank" rel="noreferrer" style={{ fontSize: '11px', padding: '4px 10px', border: '1px solid #c8b4f0', borderRadius: '4px', background: '#fff', color: '#3d1f7a', textDecoration: 'none' }}>🛍 네이버쇼핑 →</a>
+                              <a href={`https://www.coupang.com/np/search?q=${encodeURIComponent(k.keyword)}`} target="_blank" rel="noreferrer" style={{ fontSize: '11px', padding: '4px 10px', border: '1px solid #c8b4f0', borderRadius: '4px', background: '#fff', color: '#3d1f7a', textDecoration: 'none' }}>🛒 쿠팡 →</a>
+                              <a href={`https://smartstore.naver.com/main/search?searchKeyword=${encodeURIComponent(k.keyword)}`} target="_blank" rel="noreferrer" style={{ fontSize: '11px', padding: '4px 10px', border: '1px solid #c8b4f0', borderRadius: '4px', background: '#fff', color: '#3d1f7a', textDecoration: 'none' }}>🏪 스마트스토어 →</a>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 🔥 트렌드 바로가기 */}
+                <div className="kw-card" style={{ marginBottom: '10px', background: 'var(--amber-bg)' }}>
+                  <div className="kw-cat" style={{ color: '#92570a', marginBottom: '8px' }}>🔥 지금 핫한 트렌드 확인</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {[
+                      { label: '네이버 쇼핑 트렌드', url: `https://datalab.naver.com/shoppingInsight/sCategory.naver` },
+                      { label: `"${kwProduct}" 네이버 트렌드`, url: `https://datalab.naver.com/keyword/trendResult.naver?hashKey=&startDate=2024-01-01&endDate=2025-04-01&timeUnit=month&keyword=${encodeURIComponent(kwProduct)}&gender=&age=&device=` },
+                      { label: `"${kwProduct}" 구글 트렌드`, url: `https://trends.google.com/trends/explore?q=${encodeURIComponent(kwProduct)}&geo=KR` },
+                      { label: '쿠팡 베스트', url: `https://www.coupang.com/np/campaigns/82` },
+                    ].map(({ label, url }) => (
+                      <a key={label} href={url} target="_blank" rel="noreferrer" style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '20px', border: '1px solid #e8c97a', background: '#fff8e7', color: '#92570a', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                        {label} →
+                      </a>
+                    ))}
+                  </div>
                 </div>
 
                 {/* 연관 검색어 — 맨 위 */}
@@ -334,28 +390,46 @@ export default function App() {
                   <div style={{ display: 'grid', gridTemplateColumns: naverShopping.length > 0 && coupang.length > 0 ? '1fr 1fr' : '1fr', gap: '10px', marginBottom: '10px' }}>
                     {naverShopping.length > 0 && (
                       <div className="kw-card">
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '10px' }}>
-                          <div className="kw-cat" style={{ color: '#1a7a3c', marginBottom: 0 }}>🛍 네이버쇼핑 연관검색어</div>
-                        </div>
+                        <div className="kw-cat" style={{ color: '#1a7a3c', marginBottom: '10px' }}>🛍 네이버쇼핑 연관검색어</div>
                         <div className="kw-pills">
                           {naverShopping.map((kw) => (
-                            <button key={kw} className={`kw-pill${copiedKw === kw ? ' copied' : ''}`} onClick={() => copyKw(kw)}>
-                              {copiedKw === kw ? '복사됨!' : kw}
-                            </button>
+                            <div key={kw} style={{ display: 'inline-block' }}>
+                              <button className={`kw-pill${expandedKw === kw ? ' copied' : ''}`} onClick={() => toggleKw(kw)}>
+                                {kw} {expandedKw === kw ? '▲' : '▼'}
+                              </button>
+                              {expandedKw === kw && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px', marginBottom: '4px', padding: '8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '6px', minWidth: '180px' }}>
+                                  <button onClick={() => copyKw(kw)} style={{ fontSize: '11px', padding: '4px 8px', border: '1px solid var(--border)', borderRadius: '4px', background: copiedKw === kw ? 'var(--teal-bg)' : 'var(--surface2)', color: copiedKw === kw ? 'var(--teal)' : 'var(--text)', cursor: 'pointer', textAlign: 'left' }}>
+                                    {copiedKw === kw ? '✓ 복사됨!' : '📋 키워드 복사'}
+                                  </button>
+                                  <a href={`https://search.shopping.naver.com/search/all?query=${encodeURIComponent(kw)}`} target="_blank" rel="noreferrer" style={{ fontSize: '11px', padding: '4px 8px', border: '1px solid var(--border)', borderRadius: '4px', background: 'var(--surface2)', color: 'var(--text)', textDecoration: 'none', display: 'block' }}>🛍 네이버쇼핑 판매링크 →</a>
+                                  <a href={`https://www.coupang.com/np/search?q=${encodeURIComponent(kw)}`} target="_blank" rel="noreferrer" style={{ fontSize: '11px', padding: '4px 8px', border: '1px solid var(--border)', borderRadius: '4px', background: 'var(--surface2)', color: 'var(--text)', textDecoration: 'none', display: 'block' }}>🛒 쿠팡 판매링크 →</a>
+                                </div>
+                              )}
+                            </div>
                           ))}
                         </div>
                       </div>
                     )}
                     {coupang.length > 0 && (
                       <div className="kw-card">
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '10px' }}>
-                          <div className="kw-cat" style={{ color: '#e6600a', marginBottom: 0 }}>🛒 쿠팡 연관검색어</div>
-                        </div>
+                        <div className="kw-cat" style={{ color: '#e6600a', marginBottom: '10px' }}>🛒 쿠팡 연관검색어</div>
                         <div className="kw-pills">
                           {coupang.map((kw) => (
-                            <button key={kw} className={`kw-pill${copiedKw === kw ? ' copied' : ''}`} onClick={() => copyKw(kw)}>
-                              {copiedKw === kw ? '복사됨!' : kw}
-                            </button>
+                            <div key={kw} style={{ display: 'inline-block' }}>
+                              <button className={`kw-pill${expandedKw === kw ? ' copied' : ''}`} onClick={() => toggleKw(kw)}>
+                                {kw} {expandedKw === kw ? '▲' : '▼'}
+                              </button>
+                              {expandedKw === kw && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px', marginBottom: '4px', padding: '8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '6px', minWidth: '180px' }}>
+                                  <button onClick={() => copyKw(kw)} style={{ fontSize: '11px', padding: '4px 8px', border: '1px solid var(--border)', borderRadius: '4px', background: copiedKw === kw ? 'var(--teal-bg)' : 'var(--surface2)', color: copiedKw === kw ? 'var(--teal)' : 'var(--text)', cursor: 'pointer', textAlign: 'left' }}>
+                                    {copiedKw === kw ? '✓ 복사됨!' : '📋 키워드 복사'}
+                                  </button>
+                                  <a href={`https://search.shopping.naver.com/search/all?query=${encodeURIComponent(kw)}`} target="_blank" rel="noreferrer" style={{ fontSize: '11px', padding: '4px 8px', border: '1px solid var(--border)', borderRadius: '4px', background: 'var(--surface2)', color: 'var(--text)', textDecoration: 'none', display: 'block' }}>🛍 네이버쇼핑 판매링크 →</a>
+                                  <a href={`https://www.coupang.com/np/search?q=${encodeURIComponent(kw)}`} target="_blank" rel="noreferrer" style={{ fontSize: '11px', padding: '4px 8px', border: '1px solid var(--border)', borderRadius: '4px', background: 'var(--surface2)', color: 'var(--text)', textDecoration: 'none', display: 'block' }}>🛒 쿠팡 판매링크 →</a>
+                                </div>
+                              )}
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -379,16 +453,25 @@ export default function App() {
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                           {kwResult[key].map((k) => (
-                            <div key={k.keyword} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 7px', borderRadius: '6px', background: 'var(--surface2)' }}>
-                              <button className={`kw-pill${copiedKw === k.keyword ? ' copied' : ''}`} style={{ flex: 1, textAlign: 'left', fontSize: '12px' }} onClick={() => copyKw(k.keyword)}>
-                                {copiedKw === k.keyword ? '복사됨!' : k.keyword}
-                              </button>
-                              <span style={{ fontSize: '10px', color: 'var(--text3)', whiteSpace: 'nowrap' }}>
-                                {(k.pc + k.mobile).toLocaleString()}
-                              </span>
-                              <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '20px', whiteSpace: 'nowrap', background: k.competition === 'low' ? 'var(--teal-bg)' : k.competition === 'mid' ? 'var(--amber-bg)' : 'var(--red-bg)', color: k.competition === 'low' ? 'var(--teal)' : k.competition === 'mid' ? 'var(--amber)' : 'var(--red)' }}>
-                                {k.competition === 'low' ? '낮음' : k.competition === 'mid' ? '중간' : '높음'}
-                              </span>
+                            <div key={k.keyword}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 7px', borderRadius: '6px', background: expandedKw === k.keyword ? 'var(--blue-bg)' : 'var(--surface2)', cursor: 'pointer' }} onClick={() => toggleKw(k.keyword)}>
+                                <span style={{ flex: 1, fontSize: '12px', color: 'var(--text)', fontWeight: expandedKw === k.keyword ? 500 : 400 }}>{k.keyword}</span>
+                                <span style={{ fontSize: '10px', color: 'var(--text3)', whiteSpace: 'nowrap' }}>{(k.pc + k.mobile).toLocaleString()}</span>
+                                <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '20px', whiteSpace: 'nowrap', background: k.competition === 'low' ? 'var(--teal-bg)' : k.competition === 'mid' ? 'var(--amber-bg)' : 'var(--red-bg)', color: k.competition === 'low' ? 'var(--teal)' : k.competition === 'mid' ? 'var(--amber)' : 'var(--red)' }}>
+                                  {k.competition === 'low' ? '낮음' : k.competition === 'mid' ? '중간' : '높음'}
+                                </span>
+                                <span style={{ fontSize: '10px', color: 'var(--text3)' }}>{expandedKw === k.keyword ? '▲' : '▼'}</span>
+                              </div>
+                              {expandedKw === k.keyword && (
+                                <div style={{ display: 'flex', gap: '4px', padding: '6px 7px', background: 'var(--blue-bg)', borderRadius: '0 0 6px 6px', flexWrap: 'wrap' }}>
+                                  <button onClick={() => copyKw(k.keyword)} style={{ fontSize: '11px', padding: '4px 10px', border: '1px solid var(--border-info)', borderRadius: '4px', background: copiedKw === k.keyword ? 'var(--teal-bg)' : 'var(--surface)', color: copiedKw === k.keyword ? 'var(--teal)' : 'var(--text)', cursor: 'pointer' }}>
+                                    {copiedKw === k.keyword ? '✓ 복사됨!' : '📋 복사'}
+                                  </button>
+                                  <a href={`https://search.shopping.naver.com/search/all?query=${encodeURIComponent(k.keyword)}`} target="_blank" rel="noreferrer" style={{ fontSize: '11px', padding: '4px 10px', border: '1px solid var(--border)', borderRadius: '4px', background: 'var(--surface)', color: 'var(--text)', textDecoration: 'none' }}>🛍 네이버쇼핑 →</a>
+                                  <a href={`https://www.coupang.com/np/search?q=${encodeURIComponent(k.keyword)}`} target="_blank" rel="noreferrer" style={{ fontSize: '11px', padding: '4px 10px', border: '1px solid var(--border)', borderRadius: '4px', background: 'var(--surface)', color: 'var(--text)', textDecoration: 'none' }}>🛒 쿠팡 →</a>
+                                  <a href={`https://smartstore.naver.com/main/search?searchKeyword=${encodeURIComponent(k.keyword)}`} target="_blank" rel="noreferrer" style={{ fontSize: '11px', padding: '4px 10px', border: '1px solid var(--border)', borderRadius: '4px', background: 'var(--surface)', color: 'var(--text)', textDecoration: 'none' }}>🏪 스마트스토어 →</a>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
