@@ -27,6 +27,36 @@ async function fetchNaverKeywords(keyword, customerId, accessKey, secretKey) {
   } catch { return [] }
 }
 
+async function getAIRecommended(product, keywords) {
+  try {
+    const kwList = keywords.map(k => k.keyword).join(', ')
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 500,
+        system: '한국 이커머스 키워드 전문가입니다. 반드시 JSON 배열만 출력하세요. 다른 텍스트 없이 순수 JSON 배열만.',
+        messages: [{
+          role: 'user',
+          content: `상품: "${product}"\n\n아래 키워드 목록에서 이 상품과 가장 연관성 높은 키워드 20개를 골라 JSON 배열로 반환하세요.\n연관성 기준: 같은 카테고리, 유사 상품, 구매 의도가 있는 검색어 위주로.\n\n키워드 목록: ${kwList}\n\n출력 형식: ["키워드1", "키워드2", ...]`
+        }],
+      }),
+    })
+    const data = await resp.json()
+    const text = data.content?.map(c => c.text || '').join('') || ''
+    const clean = text.replace(/```json|```/g, '').trim()
+    return JSON.parse(clean)
+  } catch (e) {
+    console.error('AI error:', e)
+    return []
+  }
+}
+
 export async function POST(req) {
   const { product } = await req.json()
   if (!product) return NextResponse.json({ error: '상품명을 입력해주세요' }, { status: 400 })
@@ -35,16 +65,13 @@ export async function POST(req) {
   const accessKey = process.env.NAVER_ACCESS_LICENSE
   const secretKey = process.env.NAVER_SECRET_KEY
 
-  // 전체 키워드 + 각 단어별로 쪼개서 검색 (최대 3개)
   const words = product.trim().split(/\s+/).filter(w => w.length >= 2)
   const searchTerms = [product, ...words].slice(0, 3)
 
-  // 동시에 여러 키워드 검색
   const results = await Promise.all(
     searchTerms.map(term => fetchNaverKeywords(term, customerId, accessKey, secretKey))
   )
 
-  // 중복 제거하며 합치기
   const seen = new Set()
   const merged = []
   for (const list of results) {
@@ -56,7 +83,6 @@ export async function POST(req) {
     }
   }
 
-  // 검색량 기준 정렬
   const total = (k) => k.pc + k.mobile
   const sorted = merged
     .map(k => ({
@@ -72,6 +98,16 @@ export async function POST(req) {
     mid:   sorted.filter(k => total(k) >= 1000 && total(k) < 10000),
     low:   sorted.filter(k => total(k) >= 100  && total(k) < 1000),
     niche: sorted.filter(k => total(k) < 100),
+  }
+
+  // AI 추천 키워드 (전체 키워드 중 연관성 높은 20개)
+  let aiRecommended = []
+  if (sorted.length > 0) {
+    const recommended = await getAIRecommended(product, sorted)
+    // 검색량 데이터랑 매핑
+    aiRecommended = recommended
+      .map(kw => sorted.find(k => k.keyword === kw))
+      .filter(Boolean)
   }
 
   // 네이버쇼핑 자동완성
@@ -109,5 +145,5 @@ export async function POST(req) {
     }
   } catch (e) { console.error('Coupang error:', e) }
 
-  return NextResponse.json({ keywords: naverKeywords, naverShopping, coupang })
+  return NextResponse.json({ keywords: naverKeywords, naverShopping, coupang, aiRecommended })
 }
