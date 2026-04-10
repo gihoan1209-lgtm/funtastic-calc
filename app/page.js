@@ -232,7 +232,7 @@ export default function App() {
     <>
       <header className="header">
         <div className="header-logo">
-          펀타스틱 B2B <span>판매가 계산기 + 원가 계산기 + 키워드 조회</span>
+          통합계산기 <span>판매가 계산기 + 원가 계산기 + 키워드 조회</span>
         </div>
       </header>
 
