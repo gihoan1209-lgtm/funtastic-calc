@@ -80,6 +80,39 @@ export default function App() {
   const [listLoading, setListLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
+  // cost calculator state
+  const [costProducts, setCostProducts] = useState([{ id: 1, name: '', price: '', qty: '', shipTotal: '', width: '', depth: '', height: '' }])
+  const [costExRate, setCostExRate] = useState('220')
+  const [costCbmRate, setCostCbmRate] = useState('127000')
+  let costNextId = useRef(2)
+
+  const addCostProduct = () => {
+    setCostProducts(prev => [...prev, { id: costNextId.current++, name: '', price: '', qty: '', shipTotal: '', width: '', depth: '', height: '' }])
+  }
+  const removeCostProduct = (id) => {
+    setCostProducts(prev => prev.length > 1 ? prev.filter(p => p.id !== id) : prev)
+  }
+  const updateCostProduct = (id, field, value) => {
+    setCostProducts(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p))
+  }
+  const calcCostProduct = (p) => {
+    const rate = parseFloat(costExRate) || 220
+    const cbmRate = parseFloat(costCbmRate) || 127000
+    const price = parseFloat(p.price) || 0
+    const qty = parseFloat(p.qty) || 0
+    const shipTotal = parseFloat(p.shipTotal) || 0
+    const w = parseFloat(p.width) || 0
+    const d = parseFloat(p.depth) || 0
+    const h = parseFloat(p.height) || 0
+    const cnShipPerUnit = qty > 0 ? shipTotal / qty : 0
+    const cbm = (w / 100) * (d / 100) * (h / 100)
+    const cnCostKRW = price * rate
+    const cnShipKRW = cnShipPerUnit * rate
+    const krShipPerUnit = cbm * cbmRate
+    const unitCost = cnCostKRW + cnShipKRW + krShipPerUnit
+    return { cnShipPerUnit, cbm, cnCostKRW, cnShipKRW, krShipPerUnit, unitCost, qty }
+  }
+
   // toast
   const [toast, setToast] = useState('')
   const toastTimer = useRef(null)
@@ -199,13 +232,13 @@ export default function App() {
     <>
       <header className="header">
         <div className="header-logo">
-          펀타스틱 B2B <span>판매가 계산기 + 키워드 조회</span>
+          펀타스틱 B2B <span>판매가 계산기 + 원가 계산기 + 키워드 조회</span>
         </div>
       </header>
 
       <div className="container">
         <div className="tabs">
-          {[['calc','판매가 계산기'],['kw','키워드 조회'],['history','상품 목록']].map(([id, label]) => (
+          {[['calc','판매가 계산기'],['costcalc','원가 계산기'],['kw','키워드 조회'],['history','상품 목록']].map(([id, label]) => (
             <button key={id} className={`tab${tab===id?' active':''}`} onClick={() => setTab(id)}>{label}</button>
           ))}
         </div>
@@ -481,6 +514,123 @@ export default function App() {
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {/* ── COST CALCULATOR TAB ── */}
+        {tab === 'costcalc' && (
+          <div>
+            {/* 공통 설정 */}
+            <div className="card" style={{ marginBottom: '1.25rem' }}>
+              <div className="card-title" style={{ color: 'var(--text2)' }}>⚙️ 공통 설정</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="field" style={{ margin: 0 }}>
+                  <label className="label">환율 (원/元)</label>
+                  <input type="number" value={costExRate} onChange={e => setCostExRate(e.target.value)} />
+                </div>
+                <div className="field" style={{ margin: 0 }}>
+                  <label className="label">CBM당 해운단가 (원/CBM)</label>
+                  <input type="number" value={costCbmRate} onChange={e => setCostCbmRate(e.target.value)} />
+                </div>
+              </div>
+            </div>
+
+            {/* 상품 카드 목록 */}
+            {costProducts.map((p, idx) => {
+              const r = calcCostProduct(p)
+              return (
+                <div key={p.id} className="card" style={{ marginBottom: '12px', position: 'relative' }}>
+                  {/* 번호 + 삭제 */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <span className="badge badge-blue" style={{ fontSize: '12px', fontWeight: 700 }}>{idx + 1}</span>
+                    {costProducts.length > 1 && (
+                      <button className="btn btn-sm" style={{ color: 'var(--text3)', borderColor: 'transparent', padding: '2px 8px' }} onClick={() => removeCostProduct(p.id)}>✕</button>
+                    )}
+                  </div>
+
+                  {/* 상품명 */}
+                  <input type="text" value={p.name} onChange={e => updateCostProduct(p.id, 'name', e.target.value)} placeholder="상품명 입력" style={{ marginBottom: '12px', fontWeight: 600 }} />
+
+                  {/* 입력 행 1: 중국단가, 수량, 총배송비 */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                    <div className="field" style={{ margin: 0 }}>
+                      <label className="label">중국단가 (元)</label>
+                      <input type="number" step="0.1" value={p.price} onChange={e => updateCostProduct(p.id, 'price', e.target.value)} placeholder="0" />
+                    </div>
+                    <div className="field" style={{ margin: 0 }}>
+                      <label className="label">수량 (개)</label>
+                      <input type="number" value={p.qty} onChange={e => updateCostProduct(p.id, 'qty', e.target.value)} placeholder="0" />
+                    </div>
+                    <div className="field" style={{ margin: 0 }}>
+                      <label className="label">총배송비 (元)</label>
+                      <input type="number" step="0.1" value={p.shipTotal} onChange={e => updateCostProduct(p.id, 'shipTotal', e.target.value)} placeholder="0" />
+                    </div>
+                  </div>
+
+                  {/* 입력 행 2: 가로, 세로, 높이 */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+                    <div className="field" style={{ margin: 0 }}>
+                      <label className="label">가로 (cm)</label>
+                      <input type="number" step="0.1" value={p.width} onChange={e => updateCostProduct(p.id, 'width', e.target.value)} placeholder="0" />
+                    </div>
+                    <div className="field" style={{ margin: 0 }}>
+                      <label className="label">세로 (cm)</label>
+                      <input type="number" step="0.1" value={p.depth} onChange={e => updateCostProduct(p.id, 'depth', e.target.value)} placeholder="0" />
+                    </div>
+                    <div className="field" style={{ margin: 0 }}>
+                      <label className="label">높이 (cm)</label>
+                      <input type="number" step="0.1" value={p.height} onChange={e => updateCostProduct(p.id, 'height', e.target.value)} placeholder="0" />
+                    </div>
+                  </div>
+
+                  {/* 결과 */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', paddingTop: '14px', borderTop: '1px solid var(--border)' }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '10px', color: 'var(--text3)', marginBottom: '4px' }}>중국원가 (원화)</div>
+                      <div style={{ fontSize: '14px', fontWeight: 600 }}>{r.cnCostKRW > 0 ? won(r.cnCostKRW) : '-'}</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '10px', color: 'var(--text3)', marginBottom: '4px' }}>개당배송비 (元)</div>
+                      <div style={{ fontSize: '14px', fontWeight: 600 }}>{r.cnShipPerUnit > 0 ? r.cnShipPerUnit.toFixed(2) + '元' : '-'}</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '10px', color: 'var(--text3)', marginBottom: '4px' }}>개당배송비 (원화)</div>
+                      <div style={{ fontSize: '14px', fontWeight: 600 }}>{r.cnShipKRW > 0 ? won(r.cnShipKRW) : '-'}</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '10px', color: 'var(--text3)', marginBottom: '4px' }}>개당원가 (원화)</div>
+                      <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--blue)' }}>{r.unitCost > 0 ? won(r.unitCost) : '-'}</div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+
+            {/* 상품 추가 버튼 */}
+            <button className="btn" style={{ width: '100%', justifyContent: 'center', border: '2px dashed var(--border)', color: 'var(--text3)', marginBottom: '1.25rem' }} onClick={addCostProduct}>
+              + 상품 추가
+            </button>
+
+            {/* 하단 합계 */}
+            {(() => {
+              let cnt = 0, total = 0
+              costProducts.forEach(p => {
+                const r = calcCostProduct(p)
+                if (r.unitCost > 0) { cnt++; total += r.unitCost * r.qty }
+              })
+              return (
+                <div style={{ background: 'var(--text)', borderRadius: 'var(--radius)', padding: '1.25rem', color: '#fff', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', textAlign: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: '11px', opacity: 0.6 }}>총 상품 수</div>
+                    <div style={{ fontSize: '20px', fontWeight: 700, marginTop: '4px' }}>{cnt}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', opacity: 0.6 }}>총 원가 합계</div>
+                    <div style={{ fontSize: '20px', fontWeight: 700, marginTop: '4px' }}>{total > 0 ? won(total) : '0원'}</div>
+                  </div>
+                </div>
+              )
+            })()}
           </div>
         )}
 
